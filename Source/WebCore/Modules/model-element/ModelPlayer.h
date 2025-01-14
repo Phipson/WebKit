@@ -98,6 +98,9 @@ public:
     virtual void setEnvironmentMap(Ref<SharedBuffer>&& data);
     virtual void setHasPortal(bool);
     virtual void setStageMode(WebCore::StageModeOperation);
+    virtual void beginStageModeTransform(WebCore::TransformationMatrix);
+    virtual void updateStageModeTransform(WebCore::TransformationMatrix);
+    virtual void endStageModeInteraction();
 #endif
 };
 

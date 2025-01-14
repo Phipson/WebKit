@@ -38,6 +38,9 @@
 #import "InteractionInformationAtPosition.h"
 #import "PasteboardAccessIntent.h"
 #import "RevealFocusedElementDeferrer.h"
+#if ENABLE(MODEL_PROCESS)
+#import "StageModeInteractionState.h"
+#endif
 #import "SyntheticEditingCommandType.h"
 #import "TextCheckingController.h"
 #import "TransactionID.h"
@@ -344,6 +347,7 @@ struct ImageAnalysisContextMenuActionData {
     RetainPtr<WKHighlightLongPressGestureRecognizer> _highlightLongPressGestureRecognizer;
     RetainPtr<UILongPressGestureRecognizer> _longPressGestureRecognizer;
     RetainPtr<WKSyntheticTapGestureRecognizer> _doubleTapGestureRecognizer;
+    RetainPtr<UIPanGestureRecognizer> _singleTouchPanGestureRecognizer;
     RetainPtr<UITapGestureRecognizer> _nonBlockingDoubleTapGestureRecognizer;
     RetainPtr<UITapGestureRecognizer> _doubleTapGestureRecognizerForDoubleClick;
     RetainPtr<UITapGestureRecognizer> _twoFingerDoubleTapGestureRecognizer;
@@ -565,6 +569,11 @@ struct ImageAnalysisContextMenuActionData {
     RetainPtr<_UITextDragCaretView> _editDropCaretView;
     BlockPtr<void()> _actionToPerformAfterReceivingEditDragSnapshot;
 #endif
+
+#if ENABLE(MODEL_PROCESS)
+    WebKit::StageModeSession _stageModeSession;
+#endif
+
 #if HAVE(UI_TEXT_CURSOR_DROP_POSITION_ANIMATOR)
     RetainPtr<UIView<UITextCursorView>> _editDropTextCursorView;
     RetainPtr<UITextCursorDropPositionAnimator> _editDropCaretAnimator;
@@ -818,6 +827,13 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (void)_didChangeDragCaretRect:(CGRect)previousRect currentRect:(CGRect)rect;
 #endif
 
+-(void)panGestureDidBeginAtPoint:(CGPoint)inputPoint;
+-(bool)panGestureDidUpdateWithPoint:(CGPoint)inputPoint;
+
+#if ENABLE(MODEL_PROCESS)
+-(void)didReceiveInteractiveModelElement:(std::optional<WebCore::ElementIdentifier>)elementID;
+#endif
+
 - (void)reloadContextViewForPresentedListViewController;
 
 - (void)updateTextSuggestionsForInputDelegate;
@@ -946,6 +962,12 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 
 - (void)_selectDataListOption:(NSInteger)optionIndex;
 - (void)_setDataListSuggestionsControl:(WKDataListSuggestionsControl *)control;
+
+- (void)_simulatePanGestureBeginAtPoint:(CGPoint)hitPoint;
+- (void)_simulatePanGestureUpdateAtPoint:(CGPoint)hitPoint;
+#if ENABLE(MODEL_PROCESS)
+- (NSDictionary *) _stageModeInfoForTesting;
+#endif
 
 @property (nonatomic, readonly) BOOL isShowingDataListSuggestions;
 

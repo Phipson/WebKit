@@ -2421,6 +2421,10 @@
 		EBA8D3B727A5E33F00CB7900 /* PushServiceConnection.mm in Sources */ = {isa = PBXBuildFile; fileRef = EBA8D3B127A5E33F00CB7900 /* PushServiceConnection.mm */; };
 		EBDF51D12C8FBC4700EA1376 /* WebsitePushAndNotificationsEnabledPolicy.h in Headers */ = {isa = PBXBuildFile; fileRef = EBDF51CF2C8FBC4700EA1376 /* WebsitePushAndNotificationsEnabledPolicy.h */; };
 		ED82A7F2128C6FAF004477B3 /* WKBundlePageOverlay.h in Headers */ = {isa = PBXBuildFile; fileRef = 1A22F0FF1289FCD90085E74F /* WKBundlePageOverlay.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		EE0D3C342D2CA0EC00072978 /* StageModeInteractionState.h in Headers */ = {isa = PBXBuildFile; fileRef = EE0D3C322D28C09500072978 /* StageModeInteractionState.h */; };
+		EE0D3CDF2D3709BE00072978 /* WKStageModeBridging.h in Headers */ = {isa = PBXBuildFile; fileRef = EE0D3CDD2D3709BE00072978 /* WKStageModeBridging.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		EE0D3CE02D3709BE00072978 /* WKStageMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0D3CDC2D3709BE00072978 /* WKStageMode.swift */; };
+		EE0D3CE12D3709E100072978 /* WKStageModeBridging.h in Headers */ = {isa = PBXBuildFile; fileRef = EE0D3CDD2D3709BE00072978 /* WKStageModeBridging.h */; };
 		F409BA181E6E64BC009DA28E /* WKDragDestinationAction.h in Headers */ = {isa = PBXBuildFile; fileRef = F409BA171E6E64B3009DA28E /* WKDragDestinationAction.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		F40C3B712AB401C5007A3567 /* WKDatePickerPopoverController.h in Headers */ = {isa = PBXBuildFile; fileRef = F40C3B6F2AB40167007A3567 /* WKDatePickerPopoverController.h */; };
 		F41145682CD939E0004CDBD1 /* _WKTouchEventGenerator.h in Headers */ = {isa = PBXBuildFile; fileRef = F41145652CD939E0004CDBD1 /* _WKTouchEventGenerator.h */; settings = {ATTRIBUTES = (Private, ); }; };
@@ -8179,6 +8183,9 @@
 		EBF4E32F2C2E105A00FAC85C /* NotificationAllowLists.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = NotificationAllowLists.xcfilelist; sourceTree = "<group>"; };
 		ECA680D31E6904B500731D20 /* ExtraPrivateSymbolsForTAPI.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ExtraPrivateSymbolsForTAPI.h; sourceTree = "<group>"; };
 		ECBFC1DB1E6A4D66000300C7 /* ExtraPublicSymbolsForTAPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ExtraPublicSymbolsForTAPI.h; sourceTree = "<group>"; };
+		EE0D3C322D28C09500072978 /* StageModeInteractionState.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = StageModeInteractionState.h; sourceTree = "<group>"; };
+		EE0D3CDC2D3709BE00072978 /* WKStageMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WKStageMode.swift; sourceTree = "<group>"; };
+		EE0D3CDD2D3709BE00072978 /* WKStageModeBridging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WKStageModeBridging.h; sourceTree = "<group>"; };
 		F036978715F4BF0500C3A80E /* WebColorPicker.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = WebColorPicker.cpp; sourceTree = "<group>"; };
 		F409BA171E6E64B3009DA28E /* WKDragDestinationAction.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WKDragDestinationAction.h; sourceTree = "<group>"; };
 		F40C3B6F2AB40167007A3567 /* WKDatePickerPopoverController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = WKDatePickerPopoverController.h; path = ios/forms/WKDatePickerPopoverController.h; sourceTree = "<group>"; };
@@ -11264,6 +11271,7 @@
 				2DA8153628A4939700CF811C /* ModelProcessProxy.cpp */,
 				2DA8153528A4939700CF811C /* ModelProcessProxy.h */,
 				2DA8153728A4939700CF811C /* ModelProcessProxy.messages.in */,
+				EE0D3C322D28C09500072978 /* StageModeInteractionState.h */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -13792,6 +13800,7 @@
 				A14F9B332B68467F00AD9C56 /* MarketplaceKit */,
 				B66F88BE2B6D1D6000FB1734 /* Preview */,
 				5260053F2C707686005D813A /* RealityKit */,
+				EE0D3CDE2D3709BE00072978 /* StageMode */,
 				449A79EE2BAE299C0033BF53 /* TextAnimation */,
 				F48EC3512B75837200D1B886 /* TextExtraction */,
 				0785E7FE2CBCDFDD00F68126 /* WritingTools */,
@@ -16154,6 +16163,15 @@
 			path = NotificationAllowList;
 			sourceTree = "<group>";
 		};
+		EE0D3CDE2D3709BE00072978 /* StageMode */ = {
+			isa = PBXGroup;
+			children = (
+				EE0D3CDC2D3709BE00072978 /* WKStageMode.swift */,
+				EE0D3CDD2D3709BE00072978 /* WKStageModeBridging.h */,
+			);
+			path = StageMode;
+			sourceTree = "<group>";
+		};
 		F48EC3512B75837200D1B886 /* TextExtraction */ = {
 			isa = PBXGroup;
 			children = (
@@ -17126,6 +17144,7 @@
 				93D6B772254BB5190058DD3A /* SpeechRecognitionServer.h in Headers */,
 				93D6B784254CCD0E0058DD3A /* SpeechRecognitionServerMessages.h in Headers */,
 				93E799DA276121080074008A /* SQLiteStorageArea.h in Headers */,
+				EE0D3C342D2CA0EC00072978 /* StageModeInteractionState.h in Headers */,
 				7A3FECA221F7C09700F267CD /* StorageAccessStatus.h in Headers */,
 				93E799DC276121080074008A /* StorageAreaBase.h in Headers */,
 				932CA81C283C35EC00C20BEB /* StorageAreaIdentifier.h in Headers */,
@@ -17889,6 +17908,7 @@
 				DF7A231C291B088D00B98DF3 /* WKSnapshotConfigurationPrivate.h in Headers */,
 				57FD318722B35170008D0E8B /* WKSOAuthorizationDelegate.h in Headers */,
 				93D6B7B925534A170058DD3A /* WKSpeechRecognitionPermissionCallback.h in Headers */,
+				EE0D3CE12D3709E100072978 /* WKStageModeBridging.h in Headers */,
 				445979392BBB8E9A00087EBC /* WKSTextAnimationManager.h in Headers */,
 				44DBDA502BB23DE9004E3712 /* WKSTextAnimationSourceDelegate.h in Headers */,
 				7A78FF32224191960096483E /* WKStorageAccessAlert.h in Headers */,
@@ -18066,6 +18086,7 @@
 				A14F9B762B68CA6C00AD9C56 /* WKSLinearMediaPlayer.h in Headers */,
 				A14F9B632B686DD300AD9C56 /* WKSLinearMediaTypes.h in Headers */,
 				B66F88C22B6D202600FB1734 /* WKSPreviewWindowController.h in Headers */,
+				EE0D3CDF2D3709BE00072978 /* WKStageModeBridging.h in Headers */,
 				44DBDA4E2BAE451F004E3712 /* WKSTextAnimationSourceDelegate.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -20402,6 +20423,7 @@
 				440DB5B72C1914DC0021639B /* TextAnimationManager.swift in Sources */,
 				077FD1A02CC7569200C5D9E0 /* WKIntelligenceReplacementTextEffectCoordinator.swift in Sources */,
 				0735F3222D38B09E0003D029 /* WKIntelligenceSmartReplyTextEffectCoordinator.swift in Sources */,
+				EE0D3CE02D3709BE00072978 /* WKStageMode.swift in Sources */,
 				F48EC3532B75837F00D1B886 /* WKTextExtractionItem.swift in Sources */,
 				F47AA6CA2B7A80BB00CD8AE9 /* WKWebView+TextExtraction.swift in Sources */,
 			);
@@ -20700,6 +20722,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BCB86F4B116AAACD00CE20B7 /* WebKit.xcconfig */;
 			buildSettings = {
+				COMPILER_INDEX_STORE_ENABLE = NO;
 			};
 			name = Debug;
 		};
@@ -20707,6 +20730,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BCB86F4B116AAACD00CE20B7 /* WebKit.xcconfig */;
 			buildSettings = {
+				COMPILER_INDEX_STORE_ENABLE = NO;
 			};
 			name = Release;
 		};
@@ -20714,6 +20738,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1A4F976B100E7B6600637A18 /* DebugRelease.xcconfig */;
 			buildSettings = {
+				COMPILER_INDEX_STORE_ENABLE = NO;
 			};
 			name = Debug;
 		};
@@ -20721,6 +20746,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1A4F976B100E7B6600637A18 /* DebugRelease.xcconfig */;
 			buildSettings = {
+				COMPILER_INDEX_STORE_ENABLE = NO;
 			};
 			name = Release;
 		};
@@ -20998,6 +21024,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1A4F976A100E7B6600637A18 /* Base.xcconfig */;
 			buildSettings = {
+				COMPILER_INDEX_STORE_ENABLE = NO;
 			};
 			name = Production;
 		};
@@ -21012,6 +21039,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BCB86F4B116AAACD00CE20B7 /* WebKit.xcconfig */;
 			buildSettings = {
+				COMPILER_INDEX_STORE_ENABLE = NO;
 			};
 			name = Production;
 		};
@@ -21177,6 +21205,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				COMPILER_INDEX_STORE_ENABLE = Default;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -21185,6 +21214,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				COMPILER_INDEX_STORE_ENABLE = Default;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -21193,6 +21223,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				COMPILER_INDEX_STORE_ENABLE = Default;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Production;
@@ -21201,6 +21232,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = CD09FD0A26152E2300E4ACF1 /* WebKitSwift.xcconfig */;
 			buildSettings = {
+				COMPILER_INDEX_STORE_ENABLE = Default;
 			};
 			name = Debug;
 		};
@@ -21208,6 +21240,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = CD09FD0A26152E2300E4ACF1 /* WebKitSwift.xcconfig */;
 			buildSettings = {
+				COMPILER_INDEX_STORE_ENABLE = Default;
 			};
 			name = Release;
 		};
@@ -21215,6 +21248,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = CD09FD0A26152E2300E4ACF1 /* WebKitSwift.xcconfig */;
 			buildSettings = {
+				COMPILER_INDEX_STORE_ENABLE = Default;
 			};
 			name = Production;
 		};

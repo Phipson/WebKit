@@ -118,6 +118,19 @@ void ModelPlayer::setHasPortal(bool)
 void ModelPlayer::setStageMode(WebCore::StageModeOperation)
 {
 }
+
+void ModelPlayer::beginStageModeTransform(WebCore::TransformationMatrix)
+{
+}
+
+void ModelPlayer::updateStageModeTransform(WebCore::TransformationMatrix)
+{
+}
+
+void ModelPlayer::endStageModeInteraction()
+{
+}
+
 #endif // ENABLE(MODEL_PROCESS)
 
 }

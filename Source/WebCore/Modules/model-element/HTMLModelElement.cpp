@@ -481,6 +481,27 @@ void HTMLModelElement::didFinishEnvironmentMapLoading(bool succeeded)
             m_environmentMapReadyPromise->reject(Exception { ExceptionCode::AbortError });
     }
 }
+
+bool HTMLModelElement::supportsStageModeInteraction() const
+{
+    return stageMode() != WebCore::StageModeOperation::None;
+}
+
+void HTMLModelElement::beginStageModeTransform(WebCore::TransformationMatrix transform)
+{
+    m_modelPlayer->beginStageModeTransform(transform);
+}
+
+void HTMLModelElement::updateStageModeTransform(WebCore::TransformationMatrix transform)
+{
+    m_modelPlayer->updateStageModeTransform(transform);
+}
+
+void HTMLModelElement::endStageModeInteraction()
+{
+    if (m_modelPlayer)
+        m_modelPlayer->endStageModeInteraction();
+}
 #endif // ENABLE(MODEL_PROCESS)
 
 // MARK: - Fullscreen support.

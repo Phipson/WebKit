@@ -366,6 +366,9 @@ messages -> WebPage WantsAsyncDispatchMessage {
     DidStartDrag()
     DragEnded(std::optional<WebCore::FrameIdentifier> frameID, WebCore::IntPoint clientPosition, WebCore::IntPoint globalPosition, OptionSet<WebCore::DragOperation> dragOperationMask) -> (struct std::optional<WebCore::RemoteUserInputEventData> remoteUserInputEventData)
     DragCancelled()
+    RequestInteractiveModelElementAtPoint(WebCore::IntPoint clientPosition)
+    StageModeSessionDidUpdate(std::optional<WebCore::ElementIdentifier> elementID, WebCore::TransformationMatrix transform)
+    StageModeSessionDidEnd(std::optional<WebCore::ElementIdentifier> elementID)
 #endif
 
 #if PLATFORM(IOS_FAMILY) && ENABLE(DRAG_SUPPORT)

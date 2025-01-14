@@ -39,6 +39,7 @@
 #include <WebCore/DataOwnerType.h>
 #include <WebCore/DragActions.h>
 #include <WebCore/EditorClient.h>
+#include <WebCore/ElementTargetingTypes.h>
 #include <WebCore/FocusDirection.h>
 #include <WebCore/FrameIdentifier.h>
 #include <WebCore/InputMode.h>
@@ -696,6 +697,10 @@ public:
     virtual void didHandleAdditionalDragItemsRequest(bool added) = 0;
     virtual void willReceiveEditDragSnapshot() = 0;
     virtual void didReceiveEditDragSnapshot(std::optional<WebCore::TextIndicatorData>) = 0;
+#endif
+
+#if ENABLE(MODEL_PROCESS)
+    virtual void didReceiveInteractiveModelElement(std::optional<WebCore::ElementIdentifier>) = 0;
 #endif
 
     virtual void requestDOMPasteAccess(WebCore::DOMPasteAccessCategory, WebCore::DOMPasteRequiresInteraction, const WebCore::IntRect& elementRect, const String& originIdentifier, CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&&) = 0;

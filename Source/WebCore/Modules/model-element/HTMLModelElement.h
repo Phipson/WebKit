@@ -87,7 +87,7 @@ public:
     using ReadyPromise = DOMPromiseProxyWithResolveCallback<IDLInterface<HTMLModelElement>>;
     ReadyPromise& ready() { return m_readyPromise.get(); }
 
-    RefPtr<Model> model() const;
+    WEBCORE_EXPORT RefPtr<Model> model() const;
 
     bool usesPlatformLayer() const;
     PlatformLayer* platformLayer() const;
@@ -151,6 +151,10 @@ public:
     void setCurrentTime(double);
     const URL& environmentMap() const;
     void setEnvironmentMap(const URL&);
+    WEBCORE_EXPORT bool supportsStageModeInteraction() const;
+    WEBCORE_EXPORT void beginStageModeTransform(WebCore::TransformationMatrix);
+    WEBCORE_EXPORT void updateStageModeTransform(WebCore::TransformationMatrix);
+    WEBCORE_EXPORT void endStageModeInteraction();
 #endif
 
 #if PLATFORM(COCOA)
@@ -162,7 +166,6 @@ public:
 #if ENABLE(ARKIT_INLINE_PREVIEW_MAC)
     WEBCORE_EXPORT String inlinePreviewUUIDForTesting() const;
 #endif
-
 private:
     HTMLModelElement(const QualifiedName&, Document&);
 

@@ -104,6 +104,10 @@ class VisibleSelection;
 class WheelEvent;
 class Widget;
 
+#if ENABLE(MODEL_PROCESS)
+class HTMLModelElement;
+#endif
+
 struct DragState;
 struct RemoteUserInputEventData;
 
@@ -347,6 +351,12 @@ public:
     ImmediateActionStage immediateActionStage() const { return m_immediateActionStage; }
 
     static Widget* widgetForEventTarget(Element* eventTarget);
+
+#if ENABLE(MODEL_PROCESS)
+    WEBCORE_EXPORT std::optional<WebCore::ElementIdentifier> requestInteractiveModelElementAtPoint(const IntPoint& clientPosition);
+    WEBCORE_EXPORT void stageModeSessionDidUpdate(std::optional<WebCore::ElementIdentifier>, WebCore::TransformationMatrix);
+    WEBCORE_EXPORT void stageModeSessionDidEnd(std::optional<WebCore::ElementIdentifier>);
+#endif
 
 #if PLATFORM(IOS_FAMILY) && ENABLE(DRAG_SUPPORT)
     WEBCORE_EXPORT bool tryToBeginDragAtPoint(const IntPoint& clientPosition, const IntPoint& globalPosition);

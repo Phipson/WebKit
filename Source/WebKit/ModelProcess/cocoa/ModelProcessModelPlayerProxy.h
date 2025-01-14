@@ -49,6 +49,7 @@
 OBJC_CLASS WKModelProcessModelLayer;
 OBJC_CLASS WKModelProcessModelPlayerProxyObjCAdapter;
 OBJC_CLASS WKSRKEntity;
+OBJC_CLASS WKStageModeInteractionDriver;
 
 namespace WebCore {
 class Model;
@@ -131,6 +132,9 @@ public:
     void setEnvironmentMap(Ref<WebCore::SharedBuffer>&& data) final;
     void setHasPortal(bool) final;
     void setStageMode(WebCore::StageModeOperation) final;
+    void beginStageModeTransform(WebCore::TransformationMatrix) final;
+    void updateStageModeTransform(WebCore::TransformationMatrix) final;
+    void endStageModeInteraction() final;
 
     USING_CAN_MAKE_WEAKPTR(WebCore::REModelLoaderClient);
 
@@ -168,7 +172,11 @@ private:
     RefPtr<WebCore::SharedBuffer> m_transientEnvironmentMapData;
     bool m_hasPortal { true };
 
+    // For interactions
+    REPtr<REEntityRef> m_interactionContainerEntity;
+    RetainPtr<WKStageModeInteractionDriver> m_stageModeInteractionDriver;
     WebCore::StageModeOperation m_stageModeOperation { WebCore::StageModeOperation::None };
+    void applyStageModeOperationToDriver();
 };
 
 } // namespace WebKit

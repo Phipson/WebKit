@@ -119,6 +119,7 @@
 #import <WebCore/CompositionHighlight.h>
 #import <WebCore/DOMPasteAccess.h>
 #import <WebCore/DataDetection.h>
+#import <WebCore/ElementTargetingTypes.h>
 #import <WebCore/FloatQuad.h>
 #import <WebCore/FloatRect.h>
 #import <WebCore/FontAttributeChanges.h>
@@ -201,6 +202,9 @@
 
 #if ENABLE(WRITING_TOOLS)
 #import "WKSTextAnimationManager.h"
+#endif
+
+#if ENABLE(MODEL_PROCESS) || ENABLE(WRITING_TOOLS)
 #import "WebKitSwiftSoftLink.h"
 #endif
 
@@ -1372,6 +1376,14 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     [_singleTapGestureRecognizer setSupportingTouchEventsGestureRecognizer:_touchEventGestureRecognizer.get()];
     [self addGestureRecognizer:_singleTapGestureRecognizer.get()];
 
+#if ENABLE(MODEL_PROCESS)
+    _singleTouchPanGestureRecognizer = adoptNS([[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(_singleTouchPanGestureRecognized:)]);
+    [_singleTouchPanGestureRecognizer setMinimumNumberOfTouches:1];
+    [_singleTouchPanGestureRecognizer setMaximumNumberOfTouches:1];
+    [_singleTouchPanGestureRecognizer setDelegate:self];
+    [self addGestureRecognizer:_singleTouchPanGestureRecognizer.get()];
+#endif
+
     _nonBlockingDoubleTapGestureRecognizer = adoptNS([[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_nonBlockingDoubleTapRecognized:)]);
     [_nonBlockingDoubleTapGestureRecognizer setNumberOfTapsRequired:2];
     [_nonBlockingDoubleTapGestureRecognizer setDelegate:self];
@@ -1568,6 +1580,11 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     [_singleTapGestureRecognizer setSupportingTouchEventsGestureRecognizer:nil];
     [self removeGestureRecognizer:_singleTapGestureRecognizer.get()];
 
+#if ENABLE(MODEL_PROCESS)
+    [_singleTouchPanGestureRecognizer setDelegate:nil];
+    [self removeGestureRecognizer:_singleTouchPanGestureRecognizer.get()];
+#endif
+
     [_highlightLongPressGestureRecognizer setDelegate:nil];
     [self removeGestureRecognizer:_highlightLongPressGestureRecognizer.get()];
 
@@ -1689,6 +1706,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     [self removeGestureRecognizer:_doubleTapGestureRecognizerForDoubleClick.get()];
     [self removeGestureRecognizer:_twoFingerDoubleTapGestureRecognizer.get()];
     [self removeGestureRecognizer:_twoFingerSingleTapGestureRecognizer.get()];
+    [self removeGestureRecognizer:_singleTouchPanGestureRecognizer.get()];
 #if HAVE(UIKIT_WITH_MOUSE_SUPPORT)
     [self removeInteraction:_mouseInteraction.get()];
 #endif
@@ -1715,6 +1733,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     [self addGestureRecognizer:_doubleTapGestureRecognizerForDoubleClick.get()];
     [self addGestureRecognizer:_twoFingerDoubleTapGestureRecognizer.get()];
     [self addGestureRecognizer:_twoFingerSingleTapGestureRecognizer.get()];
+    [self addGestureRecognizer:_singleTouchPanGestureRecognizer.get()];
 #if HAVE(UIKIT_WITH_MOUSE_SUPPORT)
     [self addInteraction:_mouseInteraction.get()];
 #endif
@@ -3048,6 +3067,18 @@ static inline bool isSamePair(UIGestureRecognizer *a, UIGestureRecognizer *b, UI
         || (otherGestureRecognizer == _singleTapGestureRecognizer && gestureRecognizer._wk_isTextInteractionTapGesture))
         return YES;
 
+    if (isSamePair(gestureRecognizer, otherGestureRecognizer, _singleTouchPanGestureRecognizer.get(), _longPressGestureRecognizer.get()))
+        return YES;
+
+    if (isSamePair(gestureRecognizer, otherGestureRecognizer, _singleTouchPanGestureRecognizer.get(), _nonBlockingDoubleTapGestureRecognizer.get()))
+        return YES;
+
+    if (isSamePair(gestureRecognizer, otherGestureRecognizer, _singleTouchPanGestureRecognizer.get(), _singleTapGestureRecognizer.get()))
+        return YES;
+
+    if (isSamePair(gestureRecognizer, otherGestureRecognizer, _singleTouchPanGestureRecognizer.get(), _previewGestureRecognizer.get()))
+        return YES;
+
     if (isSamePair(gestureRecognizer, otherGestureRecognizer, _singleTapGestureRecognizer.get(), _nonBlockingDoubleTapGestureRecognizer.get()))
         return YES;
 
@@ -3360,6 +3391,25 @@ ALLOW_DEPRECATED_DECLARATIONS_END
             return NO;
         case WebKit::IgnoreTapGestureReason::None:
             return YES;
+        }
+    }
+
+    if (gestureRecognizer == _singleTouchPanGestureRecognizer) {
+        WebKit::InteractionInformationRequest request(WebCore::roundedIntPoint(point));
+        if (![self ensurePositionInformationIsUpToDate:request])
+            return NO;
+
+        if (self._hasFocusedElement) {
+            // Prevent the gesture if it is the same node.
+            if (_positionInformation.elementContext && _positionInformation.elementContext->isSameElement(_focusedElementInformation.elementContext))
+                return NO;
+        } else {
+#if ENABLE(MODEL_PROCESS)
+            // Prevent the gesture if there is no action for the node.
+            return _positionInformation.isInteractiveModel;
+#else
+            return NO;
+#endif
         }
     }
 
@@ -3850,6 +3900,36 @@ static void cancelPotentialTapIfNecessary(WKContentView* contentView)
 
     RELEASE_LOG(ViewGestures, "Synthetic click completed. (%p, pageProxyID=%llu)", self, _page->identifier().toUInt64());
     [self stopDeferringInputViewUpdates:WebKit::InputViewUpdateDeferralSource::TapGesture];
+}
+
+- (void)_singleTouchPanGestureRecognized:(UIPanGestureRecognizer *)gestureRecognizer
+{
+    ASSERT(gestureRecognizer == _singleTouchPanGestureRecognizer);
+
+    if (![self isFirstResponder]) {
+        [self startDeferringInputViewUpdates:WebKit::InputViewUpdateDeferralSource::TapGesture];
+        [self becomeFirstResponder];
+    }
+
+    _lastInteractionLocation = [gestureRecognizer locationInView:self];
+
+    switch (gestureRecognizer.state) {
+    case UIGestureRecognizerStateBegan: {
+        [self panGestureDidBeginAtPoint:_lastInteractionLocation];
+        break;
+    }
+    case UIGestureRecognizerStateChanged: {
+        [self panGestureDidUpdateWithPoint:_lastInteractionLocation];
+        break;
+    }
+    case UIGestureRecognizerStateEnded:
+    case UIGestureRecognizerStateCancelled: {
+        [self panGestureDidEnd];
+        break;
+    }
+    default:
+        break;
+    }
 }
 
 - (void)_singleTapRecognized:(UITapGestureRecognizer *)gestureRecognizer
@@ -11236,6 +11316,62 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
 
 #endif // ENABLE(DRAG_SUPPORT)
 
+#pragma mark - Pan Gesture Support
+
+-(void)panGestureDidBeginAtPoint:(CGPoint)inputPoint {
+#if ENABLE(MODEL_PROCESS)
+    if (_stageModeSession.state == WebKit::StageModeSessionState::Idle) {
+        [self cleanUpStageModeSessionState];
+        _page->requestInteractiveModelElementAtPoint(WebCore::roundedIntPoint(inputPoint));
+        _stageModeSession.state = WebKit::StageModeSessionState::Preparing;
+    }
+#endif // ENABLE(MODEL_PROCESS)
+}
+
+// TODO: rdar://141251753
+-(void)panGestureDidUpdateWithPoint:(CGPoint)inputPoint {
+#if ENABLE(MODEL_PROCESS)
+    if (_stageModeSession.state == WebKit::StageModeSessionState::Active) {
+        [self updateStageModeSessionTransformWithPoint:inputPoint];
+        _page->stageModeSessionDidUpdate(_stageModeSession.elementID, _stageModeSession.transform);
+    }
+#endif // ENABLE(MODEL_PROCESS)
+}
+
+-(void)panGestureDidEnd {
+#if ENABLE(MODEL_PROCESS)
+    if (_stageModeSession.state == WebKit::StageModeSessionState::Active)
+        _page->stageModeSessionDidEnd(_stageModeSession.elementID);
+
+    [self cleanUpStageModeSessionState];
+#endif // ENABLE(MODEL_PROCESS)
+}
+
+#if ENABLE(MODEL_PROCESS)
+-(void)didReceiveInteractiveModelElement:(std::optional<WebCore::ElementIdentifier>)elementID {
+    if (_stageModeSession.state != WebKit::StageModeSessionState::Preparing)
+        return;
+
+    if (elementID.has_value())
+        _stageModeSession.state = WebKit::StageModeSessionState::Active;
+    else
+        _stageModeSession.state = WebKit::StageModeSessionState::Idle;
+
+    _stageModeSession.elementID = elementID;
+}
+
+-(void)cleanUpStageModeSessionState {
+    _stageModeSession = { };
+}
+
+-(void)updateStageModeSessionTransformWithPoint:(CGPoint)inputPoint {
+    WebCore::TransformationMatrix tf;
+    tf.makeIdentity();
+    tf.translate3d(inputPoint.x, inputPoint.y, 0);
+    _stageModeSession.transform = tf;
+}
+#endif
+
 - (void)cancelActiveTextInteractionGestures
 {
     [self.textInteractionLoupeGestureRecognizer _wk_cancel];
@@ -14180,6 +14316,26 @@ static inline WKTextAnimationType toWKTextAnimationType(WebCore::TextAnimationTy
     [_contactPicker dismissWithContacts:contacts];
 #endif
 }
+
+- (void)_simulatePanGestureBeginAtPoint:(CGPoint)hitPoint
+{
+    [self panGestureDidBeginAtPoint:hitPoint];
+}
+
+- (void)_simulatePanGestureUpdateAtPoint:(CGPoint)hitPoint
+{
+    [self panGestureDidUpdateWithPoint:hitPoint];
+}
+
+#if ENABLE(MODEL_PROCESS)
+- (NSDictionary *) _stageModeInfoForTesting
+{
+    return @{
+        @"awaitingResult" : _stageModeSession.state == WebKit::StageModeSessionState::Preparing ? @YES : @NO,
+        @"hitTestSuccessful" : _stageModeSession.elementID.has_value() ? @YES : @NO,
+    };
+}
+#endif
 
 - (UITapGestureRecognizer *)singleTapGestureRecognizer
 {

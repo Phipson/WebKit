@@ -29,6 +29,7 @@
 #include "MessageReceiver.h"
 #include <WebCore/BoxExtents.h>
 #include <WebCore/CryptoKeyData.h>
+#include <WebCore/ElementTargetingTypes.h>
 #include <WebCore/FrameIdentifier.h>
 #include <WebCore/LayerTreeAsTextOptions.h>
 #include <WebCore/NavigationIdentifier.h>
@@ -1172,6 +1173,13 @@ public:
     void didConcludeDrop();
 #endif
 #endif // PLATFORM(IOS_FAMILY)
+
+#if ENABLE(MODEL_PROCESS)
+    void requestInteractiveModelElementAtPoint(const WebCore::IntPoint);
+    void didReceiveInteractiveModelElement(std::optional<WebCore::ElementIdentifier>);
+    void stageModeSessionDidUpdate(std::optional<WebCore::ElementIdentifier>, WebCore::TransformationMatrix);
+    void stageModeSessionDidEnd(std::optional<WebCore::ElementIdentifier>);
+#endif
 
 #if PLATFORM(COCOA)
     void insertTextPlaceholder(const WebCore::IntSize&, CompletionHandler<void(const std::optional<WebCore::ElementContext>&)>&&);

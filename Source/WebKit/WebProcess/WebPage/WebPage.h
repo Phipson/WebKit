@@ -186,6 +186,7 @@ class HTMLPlugInElement;
 class HTMLSelectElement;
 class HTMLTextFormControlElement;
 class HTMLVideoElement;
+class HTMLModelElement;
 class HandleUserInputEventResult;
 class HistoryItem;
 class IgnoreSelectionChangeForScope;
@@ -1272,6 +1273,12 @@ public:
     void didStartDrag();
     void dragCancelled();
     OptionSet<WebCore::DragSourceAction> allowedDragSourceActions() const { return m_allowedDragSourceActions; }
+#endif
+
+#if ENABLE(MODEL_PROCESS)
+    void requestInteractiveModelElementAtPoint(WebCore::IntPoint clientPosition);
+    void stageModeSessionDidUpdate(std::optional<WebCore::ElementIdentifier>, WebCore::TransformationMatrix);
+    void stageModeSessionDidEnd(std::optional<WebCore::ElementIdentifier>);
 #endif
 
     void beginPrinting(WebCore::FrameIdentifier, const PrintInfo&);

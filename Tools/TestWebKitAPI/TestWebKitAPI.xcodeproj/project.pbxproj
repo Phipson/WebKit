@@ -7702,6 +7702,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BC90957F12554CF900083756 /* DebugRelease.xcconfig */;
 			buildSettings = {
+				COMPILER_INDEX_STORE_ENABLE = NO;
 			};
 			name = Debug;
 		};
@@ -7709,6 +7710,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BC90957F12554CF900083756 /* DebugRelease.xcconfig */;
 			buildSettings = {
+				COMPILER_INDEX_STORE_ENABLE = NO;
 			};
 			name = Release;
 		};

@@ -35,6 +35,7 @@
 #import "ModelProcessModelPlayerMessages.h"
 #import "RealityKitBridging.h"
 #import "WKModelProcessModelLayer.h"
+#import "WKStageModeBridging.h"
 #import <RealitySystemSupport/RealitySystemSupport.h>
 #import <SurfBoardServices/SurfBoardServices.h>
 #import <WebCore/Color.h>
@@ -463,6 +464,25 @@ void ModelProcessModelPlayerProxy::didFinishLoading(WebCore::REModelLoader& load
 
     computeTransform();
     updateTransform();
+
+    // We want to first make sure that the model itself is properly positioned inside the portal
+    // Then, we a wrapper around the containerEntity for stage mode related interactions and transformations
+    // This ensures that the transforms applied on the model don't conflict with model-specific animations/JS transforms
+    REPtr<REEntityRef> interactionTarget = adoptRE(REEntityCreate());
+    REEntitySetName(interactionTarget.get(), "WebKit:InteractionContainerEntity");
+    m_interactionContainerEntity = interactionTarget;
+
+    // This also centers the interactionContainerEntity around the center of the model
+    if (canLoadWithRealityKit)
+        m_stageModeInteractionDriver = adoptNS([WebKit::allocWKStageModeInteractionDriverInstance() initWithInteractionTarget:m_interactionContainerEntity.get() wkModel:m_model->rootRKEntity() container:m_containerEntity.get()]);
+    else
+        m_stageModeInteractionDriver = adoptNS([WebKit::allocWKStageModeInteractionDriverInstance() initWithInteractionTarget:m_interactionContainerEntity.get() model:m_model->rootEntity() container:m_containerEntity.get()]);
+    applyStageModeOperationToDriver();
+
+    // Now that we updated the hierarchy, reapply all the network components and dirty metadata
+    REEntitySubtreeAddNetworkComponentRecursive(m_interactionContainerEntity.get());
+    RENetworkMarkEntityMetadataDirty(m_interactionContainerEntity.get());
+
     updateOpacity();
     startAnimating();
 
@@ -670,6 +690,23 @@ void ModelProcessModelPlayerProxy::setEnvironmentMap(Ref<WebCore::SharedBuffer>&
         applyEnvironmentMapDataAndRelease();
 }
 
+void ModelProcessModelPlayerProxy::beginStageModeTransform(WebCore::TransformationMatrix transform)
+{
+    simd_float4x4 tf = simd_float4x4(transform);
+    [m_stageModeInteractionDriver interactionDidBegin:tf];
+}
+
+void ModelProcessModelPlayerProxy::updateStageModeTransform(WebCore::TransformationMatrix transform)
+{
+    simd_float4x4 tf = simd_float4x4(transform);
+    [m_stageModeInteractionDriver interactionDidUpdate:tf];
+}
+
+void ModelProcessModelPlayerProxy::endStageModeInteraction()
+{
+    [m_stageModeInteractionDriver interactionDidEnd];
+}
+
 void ModelProcessModelPlayerProxy::applyEnvironmentMapDataAndRelease()
 {
     if (m_transientEnvironmentMapData) {
@@ -702,6 +739,22 @@ void ModelProcessModelPlayerProxy::setStageMode(WebCore::StageModeOperation stag
         return;
 
     m_stageModeOperation = stagemodeOp;
+    applyStageModeOperationToDriver();
+}
+
+void ModelProcessModelPlayerProxy::applyStageModeOperationToDriver()
+{
+    switch (m_stageModeOperation) {
+    case WebCore::StageModeOperation::Orbit: {
+        [m_stageModeInteractionDriver operationDidUpdate:WKStageModeOperationOrbit];
+        break;
+    }
+
+    default: {
+        [m_stageModeInteractionDriver operationDidUpdate:WKStageModeOperationNone];
+        break;
+    }
+    }
 }
 
 } // namespace WebKit

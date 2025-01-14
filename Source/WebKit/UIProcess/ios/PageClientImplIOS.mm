@@ -241,6 +241,11 @@ void PageClientImpl::didCreateContextInModelProcessForVisibilityPropagation(Laye
 {
     [m_contentView _modelProcessDidCreateContextForVisibilityPropagation];
 }
+
+void PageClientImpl::didReceiveInteractiveModelElement(std::optional<WebCore::ElementIdentifier> elementID)
+{
+    [m_contentView didReceiveInteractiveModelElement:elementID];
+}
 #endif // ENABLE(MODEL_PROCESS)
 
 #if USE(EXTENSIONKIT)

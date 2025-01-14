@@ -1335,7 +1335,14 @@ void WebPageProxy::didConcludeDrop()
 {
     m_legacyMainFrameProcess->send(Messages::WebPage::DidConcludeDrop(), webPageIDInMainFrameProcess());
 }
+#endif
 
+#if ENABLE(MODEL_PROCESS)
+void WebPageProxy::didReceiveInteractiveModelElement(std::optional<WebCore::ElementIdentifier> elementID)
+{
+    if (RefPtr pageClient = this->pageClient())
+        pageClient->didReceiveInteractiveModelElement(elementID);
+}
 #endif
 
 #if USE(QUICK_LOOK)

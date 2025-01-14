@@ -165,9 +165,6 @@ static MTCoreMaterialRecipe materialRecipeForAppleVisualEffect(AppleVisualEffect
         return PAL::get_CoreMaterial_MTCoreMaterialRecipePlatformChromeLight();
     case AppleVisualEffect::None:
         return PAL::get_CoreMaterial_MTCoreMaterialRecipeNone();
-#if HAVE(MATERIAL_HOSTING)
-    case AppleVisualEffect::HostedBlurMaterial:
-#endif
     case AppleVisualEffect::VibrancyLabel:
     case AppleVisualEffect::VibrancySecondaryLabel:
     case AppleVisualEffect::VibrancyTertiaryLabel:
@@ -203,9 +200,6 @@ static MTCoreMaterialVisualStyle materialVisualStyleForAppleVisualEffect(AppleVi
     case AppleVisualEffect::BlurMaterial:
     case AppleVisualEffect::BlurThickMaterial:
     case AppleVisualEffect::BlurChromeMaterial:
-#if HAVE(MATERIAL_HOSTING)
-    case AppleVisualEffect::HostedBlurMaterial:
-#endif
         ASSERT_NOT_REACHED();
         return nil;
     }
@@ -230,9 +224,6 @@ static MTCoreMaterialVisualStyleCategory materialVisualStyleCategoryForAppleVisu
     case AppleVisualEffect::BlurMaterial:
     case AppleVisualEffect::BlurThickMaterial:
     case AppleVisualEffect::BlurChromeMaterial:
-#if HAVE(MATERIAL_HOSTING)
-    case AppleVisualEffect::HostedBlurMaterial:
-#endif
         ASSERT_NOT_REACHED();
         return nil;
     }

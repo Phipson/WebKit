@@ -44,6 +44,11 @@ public final class WKStageModeInteractionDriver: NSObject {
     private var stageModeOperation: WKStageModeOperation = .none
     let interactionTarget: Entity
     
+    // Transform state machine
+    private var driverInitialized: Bool = false
+    private var initialManipulationPose: Transform = .identity
+    private var previousManipulationPose: Transform = .identity
+    
     @objc override init() {
         self.interactionTarget = Entity()
     }
@@ -85,19 +90,45 @@ public final class WKStageModeInteractionDriver: NSObject {
         self.init(interactionContainer)
     }
     
+    @objc(stageModeInteractionInProgress)
+    func stageModeInteractionInProgress() -> Bool {
+        return stageModeOperation != .none && driverInitialized
+    }
+    
     @objc(interactionDidBegin:)
     func interactionDidBegin(_ transform: simd_float4x4) {
-        // TODO: rdar://141251753
+        let tf = Transform(matrix: transform)
+        Logger.objectManipulation.debug("WKOMInteraction: WKStageModeInteractionDriver initializeDriver")
+        initialManipulationPose = Transform(matrix: interactionTarget.transformMatrix(relativeTo: nil))
+        previousManipulationPose = tf
+        driverInitialized = true
     }
     
     @objc(interactionDidUpdate:)
     func interactionDidUpdate(_ transform: simd_float4x4) {
-        // TODO: rdar://141251753
+        let tf = Transform(matrix: transform)
+        Logger.objectManipulation.debug("WKOMInteraction: WKStageModeInteractionDriver updateDriver \(self.interactionTarget.name)")
+        switch stageModeOperation {
+        case .orbit:
+            do {
+                let xyDelta = (tf.translation._inMeters - previousManipulationPose.translation._inMeters).xy * 5.0
+                let eulerAngles = simd_float3(xyDelta.y, xyDelta.x, 0)
+                self.interactionTarget.transform.rotation *= eulerAngles.quaternion
+                Logger.objectManipulation.debug("WKOMInteraction: WKStageModeInteractionDriver orbit translation \(tf.translation) delta \(xyDelta)")
+                break
+            }
+        default:
+            break
+        }
+
+        previousManipulationPose = tf
     }
     
     @objc(interactionDidEnd)
     func interactionDidEnd() {
-        // TODO: rdar://141251753
+        driverInitialized = false
+        initialManipulationPose = .identity
+        previousManipulationPose = .identity
     }
     
     @objc(operationDidUpdate:)
@@ -105,6 +136,76 @@ public final class WKStageModeInteractionDriver: NSObject {
         self.stageModeOperation = operation
     }
     
+}
+
+extension Point3D {
+    var _cgPoint: CGPoint {
+        CGPoint(x: self.x, y: self.y)
+    }
+
+    var _float3: simd_float3 {
+        simd_float3(Float(x), Float(y), Float(z))
+    }
+}
+
+extension Size3D {
+    var _float3: simd_float3 {
+        simd_float3(Float(width), Float(height), Float(depth))
+    }
+}
+
+extension Vector3D {
+    var _float3: simd_float3 {
+        simd_float3(Float(x), Float(y), Float(z))
+    }
+}
+
+extension simd_float3 {
+    var _inMeters: simd_float3 {
+        self / 1360.0
+    }
+
+    var _inPoints: simd_float3 {
+        self * 1360.0
+    }
+
+    // Adapted from Core3DRuntime/Math/simd_extensions.h
+    // scn_quat_from_euler
+    // Implemented in Swift
+    // Modified variable names due to odd ordering of roll, pitch, yaw in input parameters
+    var quaternion: simd_quatf {
+        // calculate trig identities
+        let cx = cos(x / 2)
+        let cy = cos(y / 2)
+        let cz = cos(z / 2)
+
+        let sx = sin(x / 2)
+        let sy = sin(y / 2)
+        let sz = sin(z / 2)
+
+        let cycz = cy * cz
+        let sysz = sy * sz
+
+        let vx = sx * cycz - cx * sysz
+        let vy = cx * sy * cz + sx * cy * sz
+        let vz = cx * cy * sz - sx * sy * cz
+        let vw = cx * cycz + sx * sysz
+
+        return simd_quatf(vector: simd_float4(x: vx, y: vy, z: vz, w: vw))
+    }
+
+    var xy: simd_float2 {
+        return .init(x, y)
+    }
+}
+
+extension simd_double4x4 {
+    var _float4x4: simd_float4x4 {
+        return simd_float4x4(simd_float4(Float(columns.0[0]), Float(columns.0[1]), Float(columns.0[2]), Float(columns.0[3])),
+                             simd_float4(Float(columns.1[0]), Float(columns.1[1]), Float(columns.1[2]), Float(columns.1[3])),
+                             simd_float4(Float(columns.2[0]), Float(columns.2[1]), Float(columns.2[2]), Float(columns.2[3])),
+                             simd_float4(Float(columns.3[0]), Float(columns.3[1]), Float(columns.3[2]), Float(columns.3[3])))
+    }
 }
 
 #endif // os(visionOS)

@@ -63,6 +63,22 @@ RetainPtr<WKPageHostedModelView> ModelPresentationManagerProxy::setUpModelView(R
     return view;
 }
 
+RetainPtr<UIView> ModelPresentationManagerProxy::viewForDragPreview(const WebCore::PlatformLayerIdentifier& layerIdentifier)
+{
+    if (!m_modelPresentations.contains(layerIdentifier))
+        return nil;
+
+    ModelPresentation& modelPresentation = *(m_modelPresentations.get(layerIdentifier));
+    auto modelView = modelPresentation.remoteModelView;
+    if (!modelView)
+        return nil;
+
+    CGRect frame = [modelView frame];
+    [modelView _setAssumedNoncoplanarHostedContentSize:SPSize3DMake(CGRectGetWidth(frame), CGRectGetHeight(frame), 100)];
+
+    return modelView;
+}
+
 void ModelPresentationManagerProxy::invalidateModel(const WebCore::PlatformLayerIdentifier& layerIdentifier)
 {
     m_modelPresentations.remove(layerIdentifier);

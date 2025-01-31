@@ -182,6 +182,10 @@
 #import <WebCore/DragItem.h>
 #import <WebCore/PlatformPasteboard.h>
 #import <WebCore/WebItemProviderPasteboard.h>
+
+#if PLATFORM(VISION) && ENABLE(MODEL_PROCESS)
+#import "ModelPresentationManagerProxy.h"
+#endif
 #endif
 
 #if HAVE(LOOKUP_GESTURE_RECOGNIZER)
@@ -10390,6 +10394,18 @@ static BOOL shouldEnableDragInteractionForPolicy(_WKDragInteractionPolicy policy
 - (void)_startDrag:(RetainPtr<CGImageRef>)image item:(const WebCore::DragItem&)item
 {
     ASSERT(item.sourceAction);
+
+#if PLATFORM(VISION) && ENABLE(MODEL_PROCESS)
+    if (item.modelLayerID && _page) {
+        if (auto modelPresentationManager = _page->modelPresentationManagerProxy()) {
+            auto viewForDragPreview = modelPresentationManager->viewForDragPreview(*item.modelLayerID);
+            if (viewForDragPreview) {
+                _dragDropInteractionState.stageDragItem(item, viewForDragPreview);
+                return;
+            }
+        }
+    }
+#endif
 
     if (item.promisedAttachmentInfo)
         [self _prepareToDragPromisedAttachment:item.promisedAttachmentInfo];

@@ -1031,6 +1031,26 @@ bool DragController::startDrag(LocalFrame& src, const DragState& state, OptionSe
         }
     }
 
+#if ENABLE(MODEL_ELEMENT)
+    // Let model drag take precedence over everything else, including selection.
+    if (RefPtr modelElement = dynamicDowncast<HTMLModelElement>(state.source); modelElement && m_dragSourceAction.contains(DragSourceAction::Model)) {
+        dragImage = DragImage { createDragImageForNode(src, *modelElement) };
+
+        PasteboardImage pasteboardImage;
+        pasteboardImage.suggestedName = modelElement->currentSrc().lastPathComponent().toString();
+        pasteboardImage.resourceMIMEType = modelElement->model()->mimeType();
+        pasteboardImage.resourceData = modelElement->model()->data();
+        dataTransfer->pasteboard().write(pasteboardImage);
+
+        dragImageOffset = IntPoint { dragImageSize(dragImage.get()) };
+        dragLoc = dragLocForDHTMLDrag(mouseDraggedPoint, dragOrigin, dragImageOffset, false);
+
+        client().willPerformDragSourceAction(DragSourceAction::Model, dragOrigin, dataTransfer);
+        doSystemDrag(WTFMove(dragImage), dragLoc, dragOrigin, src, state, { });
+        return true;
+    }
+#endif
+    
     if (state.type == DragSourceAction::Selection || !imageURL.isEmpty() || !linkURL.isEmpty()) {
         // Selection, image, and link drags receive a default set of allowed drag operations that
         // follows from:
@@ -1275,25 +1295,6 @@ bool DragController::startDrag(LocalFrame& src, const DragState& state, OptionSe
         return true;
     }
 
-#if ENABLE(MODEL_ELEMENT)
-    if (RefPtr modelElement = dynamicDowncast<HTMLModelElement>(state.source); modelElement && m_dragSourceAction.contains(DragSourceAction::Model)) {
-        dragImage = DragImage { createDragImageForNode(src, *modelElement) };
-
-        PasteboardImage pasteboardImage;
-        pasteboardImage.suggestedName = modelElement->currentSrc().lastPathComponent().toString();
-        pasteboardImage.resourceMIMEType = modelElement->model()->mimeType();
-        pasteboardImage.resourceData = modelElement->model()->data();
-        dataTransfer->pasteboard().write(pasteboardImage);
-
-        dragImageOffset = IntPoint { dragImageSize(dragImage.get()) };
-        dragLoc = dragLocForDHTMLDrag(mouseDraggedPoint, dragOrigin, dragImageOffset, false);
-
-        client().willPerformDragSourceAction(DragSourceAction::Model, dragOrigin, dataTransfer);
-        doSystemDrag(WTFMove(dragImage), dragLoc, dragOrigin, src, state, { });
-        return true;
-    }
-#endif
-
     if (state.type == DragSourceAction::DHTML && dragImage) {
         ASSERT(m_dragSourceAction.contains(DragSourceAction::DHTML));
         client().willPerformDragSourceAction(DragSourceAction::DHTML, dragOrigin, dataTransfer);
@@ -1422,6 +1423,11 @@ void DragController::doSystemDrag(DragImage image, const IntPoint& dragLoc, cons
             item.title = titleAttribute.isEmpty() ? link->innerText() : titleAttribute.string();
             item.url = frame.document()->completeURL(link->getAttribute(HTMLNames::hrefAttr));
         }
+
+#if ENABLE(MODEL_PROCESS)
+        if (RefPtr modelElement = dynamicDowncast<HTMLModelElement>(state.source); modelElement && m_dragSourceAction.contains(DragSourceAction::Model))
+            item.modelLayerID = modelElement->layerID();
+#endif
     }
     client().startDrag(WTFMove(item), *state.dataTransfer, mainFrame.get());
     // DragClient::startDrag can cause our Page to dispear, deallocating |this|.

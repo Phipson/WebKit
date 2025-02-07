@@ -37,6 +37,7 @@ typedef NS_ENUM(NSInteger, WKStageModeOperation) {
 
 @interface WKStageModeInteractionDriver: NSObject
 - (instancetype) initWithInteractionTarget:(REEntityRef)target model:(REEntityRef)model container:(REEntityRef)container NS_SWIFT_NAME(init(with:model:container:));
+- (bool) stageModeInteractionInProgress NS_SWIFT_NAME(stageModeInteractionInProgress());
 - (void) interactionDidBegin:(simd_float4x4)transform NS_SWIFT_NAME(interactionDidBegin(_:));
 - (void) interactionDidUpdate:(simd_float4x4)transform NS_SWIFT_NAME(interactionDidUpdate(_:));
 - (void) interactionDidEnd NS_SWIFT_NAME(interactionDidEnd());

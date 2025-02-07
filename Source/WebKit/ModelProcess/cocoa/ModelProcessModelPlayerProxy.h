@@ -177,6 +177,7 @@ private:
     RetainPtr<WKStageModeInteractionDriver> m_stageModeInteractionDriver;
     WebCore::StageModeOperation m_stageModeOperation { WebCore::StageModeOperation::None };
     void applyStageModeOperationToDriver();
+    bool stageModeInteractionInProgress();
 };
 
 } // namespace WebKit

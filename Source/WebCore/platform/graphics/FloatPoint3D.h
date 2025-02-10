@@ -24,7 +24,6 @@
 #define FloatPoint3D_h
 
 #include "FloatPoint.h"
-#include <simd/simd.h>
 
 namespace WebCore {
 

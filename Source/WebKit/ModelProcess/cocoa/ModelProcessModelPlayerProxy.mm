@@ -378,6 +378,7 @@ void ModelProcessModelPlayerProxy::updateTransform()
         return;
 
     [m_modelRKEntity setTransform:WKEntityTransform({ m_transformSRT.scale, m_transformSRT.rotation, m_transformSRT.translation })];
+    [m_stageModeInteractionDriver modelTransformDidChange];
 }
 
 void ModelProcessModelPlayerProxy::updateOpacity()
@@ -421,12 +422,12 @@ void ModelProcessModelPlayerProxy::didFinishLoading(WebCore::REModelLoader& load
     bool canLoadWithRealityKit = [getWKSRKEntityClass() isLoadFromDataAvailable];
     m_loader = nullptr;
     m_model = WTFMove(model);
-    
+
     if (canLoadWithRealityKit)
-       m_modelRKEntity = m_model->rootRKEntity();
+        m_modelRKEntity = m_model->rootRKEntity();
     else if (m_model->rootEntity())
-       m_modelRKEntity = adoptNS([allocWKSRKEntityInstance() initWithCoreEntity:m_model->rootEntity()]);
-    
+        m_modelRKEntity = adoptNS([allocWKSRKEntityInstance() initWithCoreEntity:m_model->rootEntity()]);
+
     [m_modelRKEntity setDelegate:m_objCAdapter.get()];
     m_originalBoundingBoxExtents = [m_modelRKEntity boundingBoxExtents];
     m_originalBoundingBoxCenter = [m_modelRKEntity boundingBoxCenter];
@@ -440,12 +441,12 @@ void ModelProcessModelPlayerProxy::didFinishLoading(WebCore::REModelLoader& load
     auto clientComponent = RECALayerGetCALayerClientComponent(m_layer.get());
     auto clientComponentEntity = REComponentGetEntity(clientComponent);
     REEntitySetName(clientComponentEntity, "WebKit:ClientComponentEntity");
-    
+
     if (canLoadWithRealityKit)
-       [m_model->rootRKEntity() setName:@"WebKit:ModelRootEntity"];
+        [m_model->rootRKEntity() setName:@"WebKit:ModelRootEntity"];
     else
-       REEntitySetName(m_model->rootEntity(), "WebKit:ModelRootEntity");
-    
+        REEntitySetName(m_model->rootEntity(), "WebKit:ModelRootEntity");
+
     // FIXME: Clipping workaround for rdar://125188888 (blocked by rdar://123516357 -> rdar://124718417).
     // containerEntity is required to add a clipping primitive that is independent from model's rootEntity.
     // Adding the primitive directly to clientComponentEntity has no visual effect.
@@ -454,21 +455,21 @@ void ModelProcessModelPlayerProxy::didFinishLoading(WebCore::REModelLoader& load
     REEntitySetName(m_containerEntity.get(), "WebKit:ContainerEntity");
     REEntitySetParent(m_containerEntity.get(), clientComponentEntity);
     if (canLoadWithRealityKit)
-       [m_model->rootRKEntity() setParentCoreEntity:m_containerEntity.get()];
+        [m_model->rootRKEntity() setParentCoreEntity:m_containerEntity.get()];
     else
-       REEntitySetParent(m_model->rootEntity(), m_containerEntity.get());
+        REEntitySetParent(m_model->rootEntity(), m_containerEntity.get());
     REEntitySubtreeAddNetworkComponentRecursive(m_containerEntity.get());
     auto clipComponent = REEntityGetOrAddComponentByClass(m_containerEntity.get(), REClippingPrimitiveComponentGetComponentType());
     REClippingPrimitiveComponentSetShouldClipChildren(clipComponent, true);
     REClippingPrimitiveComponentSetShouldClipSelf(clipComponent, true);
     REAABB clipBounds { simd_make_float3(-clippingBoxHalfSize, -clippingBoxHalfSize, -2 * clippingBoxHalfSize),
-       simd_make_float3(clippingBoxHalfSize, clippingBoxHalfSize, 0) };
+        simd_make_float3(clippingBoxHalfSize, clippingBoxHalfSize, 0) };
     REClippingPrimitiveComponentClipToBox(clipComponent, clipBounds);
     RENetworkMarkEntityMetadataDirty(clientComponentEntity);
-    
+
     if (!canLoadWithRealityKit)
-       RENetworkMarkEntityMetadataDirty(m_model->rootEntity());
-    
+        RENetworkMarkEntityMetadataDirty(m_model->rootEntity());
+
     computeTransform();
     updateTransform();
 
@@ -481,7 +482,7 @@ void ModelProcessModelPlayerProxy::didFinishLoading(WebCore::REModelLoader& load
 
     // This also centers the interactionContainerEntity around the center of the model
     if (canLoadWithRealityKit)
-        m_stageModeInteractionDriver = adoptNS([WebKit::allocWKStageModeInteractionDriverInstance() initWithInteractionTarget:m_interactionContainerEntity.get() wkModel:m_model->rootRKEntity() container:m_containerEntity.get()]);
+        m_stageModeInteractionDriver = adoptNS([WebKit::allocWKStageModeInteractionDriverInstance() initWithInteractionTarget:m_interactionContainerEntity.get() wkModel:m_model->rootRKEntity().get() container:m_containerEntity.get()]);
     else
         m_stageModeInteractionDriver = adoptNS([WebKit::allocWKStageModeInteractionDriverInstance() initWithInteractionTarget:m_interactionContainerEntity.get() model:m_model->rootEntity() container:m_containerEntity.get()]);
     applyStageModeOperationToDriver();
@@ -707,7 +708,7 @@ void ModelProcessModelPlayerProxy::updateStageModeTransform(WebCore::Transformat
 {
     simd_float4x4 tf = simd_float4x4(transform);
     [m_stageModeInteractionDriver interactionDidUpdate:tf];
-    
+
     if (stageModeInteractionInProgress() && m_modelRKEntity) {
         WKEntityTransform tf = [m_modelRKEntity transform];
         m_transformSRT = RESRT {

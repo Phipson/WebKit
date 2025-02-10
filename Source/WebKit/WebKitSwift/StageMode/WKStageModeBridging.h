@@ -44,6 +44,7 @@ typedef NS_ENUM(NSInteger, WKStageModeOperation) {
 - (void) interactionDidUpdate:(simd_float4x4)transform NS_SWIFT_NAME(interactionDidUpdate(_:));
 - (void) interactionDidEnd NS_SWIFT_NAME(interactionDidEnd());
 - (void) operationDidUpdate:(WKStageModeOperation)operation NS_SWIFT_NAME(operationDidUpdate(_:));
+- (void) modelTransformDidChange NS_SWIFT_NAME(modelTransformDidChange());
 @end
 
 NS_ASSUME_NONNULL_END

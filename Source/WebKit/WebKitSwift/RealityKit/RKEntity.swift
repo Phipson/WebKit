@@ -103,12 +103,12 @@ public final class WKSRKEntity: NSObject {
 
     @objc(transform) public var transform: WKEntityTransform {
         get {
-            guard let transformComponent = entity.components[Transform.self] else {
+            guard let transform = entity.components[Transform.self] else {
                 Logger.realityKitEntity.error("No transform component available from entity")
                 return WKEntityTransform(scale: simd_float3.one, rotation: simd_quatf(ix: 0, iy: 0, iz: 0, r: 1), translation: simd_float3.zero)
             }
 
-            return WKEntityTransform(scale: transformComponent.scale, rotation: transformComponent.rotation, translation: transformComponent.translation)
+            return WKEntityTransform(scale: transform.scale, rotation: transform.rotation, translation: transform.translation)
         }
 
         set {

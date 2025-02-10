@@ -34,28 +34,36 @@ internal import Spatial
 @_spi(Private) @_spi(RealityKit) @_spi(CoreREAdditions) import RealityFoundation
 
 fileprivate extension Logger {
-    static let objectManipulation = Logger(subsystem: "com.apple.WebKit", category: "StageModeInteraction")
+    static let stageMode = Logger(subsystem: "com.apple.WebKit", category: "StageModeInteraction")
 }
 
 /// A driver that maps all gesture updates to the specific transform we want for the specified StageMode behavior
 @MainActor
 @objc(WKStageModeInteractionDriver)
 public final class WKStageModeInteractionDriver: NSObject {
+    private let kDragToRotationMultiplier: Float = 5.0
+    
     private var stageModeOperation: WKStageModeOperation = .none
     let interactionTarget: Entity
+    let modelEntity: Entity
     
     // Transform state machine
     private var driverInitialized: Bool = false
     private var initialManipulationPose: Transform = .identity
     private var previousManipulationPose: Transform = .identity
+    private var initialTargetPose: Transform = .identity
+    private var centerToPositionOffset: simd_float3
     
     @objc override init() {
+        self.centerToPositionOffset = .zero
         self.interactionTarget = Entity()
+        self.modelEntity = Entity()
     }
     
-    init(_ target: Entity) {
-        Logger.objectManipulation.debug("WKOMInteraction: WKStageModeInteractionDriver created driver for target \(target.name)")
+    init(_ target: Entity, _ model: Entity) {
+        self.centerToPositionOffset = model.visualBounds(relativeTo: nil).center - model.position(relativeTo: nil)
         self.interactionTarget = target
+        self.modelEntity = model
     }
     
     // MARK: ObjC Exposed API
@@ -69,7 +77,7 @@ public final class WKStageModeInteractionDriver: NSObject {
         modelEntity.setParent(interactionContainer, preservingWorldTransform: true)
         interactionContainer.setParent(containerEntity, preservingWorldTransform: true)
         
-        self.init(interactionContainer)
+        self.init(interactionContainer, modelEntity)
     }
     
     @objc(initWithInteractionTarget:wkModel:container:)
@@ -87,7 +95,7 @@ public final class WKStageModeInteractionDriver: NSObject {
         modelEntity.setParent(interactionContainer, preservingWorldTransform: true)
         interactionContainer.setParent(containerEntity, preservingWorldTransform: true)
         
-        self.init(interactionContainer)
+        self.init(interactionContainer, modelEntity)
     }
     
     @objc(stageModeInteractionInProgress)
@@ -97,24 +105,34 @@ public final class WKStageModeInteractionDriver: NSObject {
     
     @objc(interactionDidBegin:)
     func interactionDidBegin(_ transform: simd_float4x4) {
-        let tf = Transform(matrix: transform)
-        Logger.objectManipulation.debug("WKOMInteraction: WKStageModeInteractionDriver initializeDriver")
-        initialManipulationPose = Transform(matrix: interactionTarget.transformMatrix(relativeTo: nil))
-        previousManipulationPose = tf
         driverInitialized = true
+
+        let initialCenter = modelEntity.visualBounds(relativeTo: nil).center
+        let initialMatrix = modelEntity.transformMatrix(relativeTo: nil)
+        self.interactionTarget.setPosition(initialCenter, relativeTo: nil)
+        self.modelEntity.setTransformMatrix(initialMatrix, relativeTo: nil)
+        
+        let tf = Transform(matrix: transform)
+        initialManipulationPose = tf
+        previousManipulationPose = tf
+        initialTargetPose = interactionTarget.transform
     }
     
     @objc(interactionDidUpdate:)
     func interactionDidUpdate(_ transform: simd_float4x4) {
         let tf = Transform(matrix: transform)
-        Logger.objectManipulation.debug("WKOMInteraction: WKStageModeInteractionDriver updateDriver \(self.interactionTarget.name)")
         switch stageModeOperation {
         case .orbit:
             do {
-                let xyDelta = (tf.translation._inMeters - previousManipulationPose.translation._inMeters).xy * 5.0
-                let eulerAngles = simd_float3(xyDelta.y, xyDelta.x, 0)
-                self.interactionTarget.transform.rotation *= eulerAngles.quaternion
-                Logger.objectManipulation.debug("WKOMInteraction: WKStageModeInteractionDriver orbit translation \(tf.translation) delta \(xyDelta)")
+                let xyDelta = (tf.translation._inMeters - previousManipulationPose.translation._inMeters).xy * kDragToRotationMultiplier
+                
+                // Apply pitch along global x axis
+                var quat = Rotation3D(angle: .init(radians: xyDelta.y), axis: .init(vector: self.interactionTarget.convert(direction: .init(1, 0, 0), from: nil).double3))
+                
+                // Apply yaw along local y axis
+                quat = quat.rotated(by: Rotation3D(angle: .init(radians: xyDelta.x), axis: .y))
+                
+                self.interactionTarget.orientation *= quat.quaternion.quatf
                 break
             }
         default:
@@ -136,75 +154,33 @@ public final class WKStageModeInteractionDriver: NSObject {
         self.stageModeOperation = operation
     }
     
+    @objc(modelTransformDidChange)
+    func modelTransformDidChange() {
+//        Logger.stageMode.debug("WKOM: TARGET \(self.interactionTarget.position(relativeTo: nil)) entity \(self.modelEntity.visualBounds(relativeTo: nil).center)")
+    }
+    
 }
 
-extension Point3D {
-    var _cgPoint: CGPoint {
-        CGPoint(x: self.x, y: self.y)
-    }
-
-    var _float3: simd_float3 {
-        simd_float3(Float(x), Float(y), Float(z))
-    }
-}
-
-extension Size3D {
-    var _float3: simd_float3 {
-        simd_float3(Float(width), Float(height), Float(depth))
-    }
-}
-
-extension Vector3D {
-    var _float3: simd_float3 {
-        simd_float3(Float(x), Float(y), Float(z))
-    }
-}
+// MARK: - SIMD Extentions
 
 extension simd_float3 {
+    // Based on visionOS's Points Per Meter (PPM) heuristics
     var _inMeters: simd_float3 {
         self / 1360.0
-    }
-
-    var _inPoints: simd_float3 {
-        self * 1360.0
-    }
-
-    // Adapted from Core3DRuntime/Math/simd_extensions.h
-    // scn_quat_from_euler
-    // Implemented in Swift
-    // Modified variable names due to odd ordering of roll, pitch, yaw in input parameters
-    var quaternion: simd_quatf {
-        // calculate trig identities
-        let cx = cos(x / 2)
-        let cy = cos(y / 2)
-        let cz = cos(z / 2)
-
-        let sx = sin(x / 2)
-        let sy = sin(y / 2)
-        let sz = sin(z / 2)
-
-        let cycz = cy * cz
-        let sysz = sy * sz
-
-        let vx = sx * cycz - cx * sysz
-        let vy = cx * sy * cz + sx * cy * sz
-        let vz = cx * cy * sz - sx * sy * cz
-        let vw = cx * cycz + sx * sysz
-
-        return simd_quatf(vector: simd_float4(x: vx, y: vy, z: vz, w: vw))
     }
 
     var xy: simd_float2 {
         return .init(x, y)
     }
+    
+    var double3: simd_double3 {
+        return .init(Double(x), Double(y), Double(z))
+    }
 }
 
-extension simd_double4x4 {
-    var _float4x4: simd_float4x4 {
-        return simd_float4x4(simd_float4(Float(columns.0[0]), Float(columns.0[1]), Float(columns.0[2]), Float(columns.0[3])),
-                             simd_float4(Float(columns.1[0]), Float(columns.1[1]), Float(columns.1[2]), Float(columns.1[3])),
-                             simd_float4(Float(columns.2[0]), Float(columns.2[1]), Float(columns.2[2]), Float(columns.2[3])),
-                             simd_float4(Float(columns.3[0]), Float(columns.3[1]), Float(columns.3[2]), Float(columns.3[3])))
+extension simd_quatd {
+    var quatf: simd_quatf {
+        return .init(ix: Float(self.imag.x), iy: Float(self.imag.y), iz: Float(self.imag.z), r: Float(self.real))
     }
 }
 

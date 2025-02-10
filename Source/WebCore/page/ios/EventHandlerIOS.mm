@@ -743,7 +743,7 @@ void EventHandler::stageModeSessionDidUpdate(std::optional<WebCore::ElementIdent
         return;
 
     RefPtr element = Element::fromIdentifier(elementID.value());
-    if (!element || is<HTMLModelElement>(element))
+    if (!element || !is<HTMLModelElement>(element))
         return;
 
     auto modelElement = downcast<HTMLModelElement>(element);
@@ -761,7 +761,7 @@ void EventHandler::stageModeSessionDidEnd(std::optional<WebCore::ElementIdentifi
         return;
 
     RefPtr element = Element::fromIdentifier(elementID.value());
-    if (!element || is<HTMLModelElement>(element))
+    if (!element || !is<HTMLModelElement>(element))
         return;
 
     auto modelElement = downcast<HTMLModelElement>(element);

@@ -93,7 +93,6 @@ public:
     PlatformLayer* platformLayer() const;
 
     std::optional<LayerHostingContextIdentifier> layerHostingContextIdentifier() const;
-    std::optional<PlatformLayerIdentifier> layerID() const;
 
 #if ENABLE(MODEL_PROCESS)
     RefPtr<ModelContext> modelContext() const;
@@ -177,6 +176,7 @@ private:
     void deleteModelPlayer();
 
     RefPtr<GraphicsLayer> graphicsLayer() const;
+    std::optional<PlatformLayerIdentifier> layerID() const;
 
     HTMLModelElement& readyPromiseResolve();
 

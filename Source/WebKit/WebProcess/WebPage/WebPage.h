@@ -1283,8 +1283,6 @@ public:
 
 #if ENABLE(MODEL_PROCESS)
     void requestInteractiveModelElementAtPoint(WebCore::IntPoint clientPosition);
-    void requestInteractiveModelElementFailed();
-    void didReceiveInteractiveModelElement(std::optional<WebCore::ElementIdentifier>);
     void stageModeSessionDidUpdate(std::optional<WebCore::ElementIdentifier>, WebCore::TransformationMatrix);
     void stageModeSessionDidEnd(std::optional<WebCore::ElementIdentifier>);
 #endif

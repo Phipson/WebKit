@@ -27,6 +27,7 @@
 #import <CoreRE/REObjects.h>
 #import <Foundation/Foundation.h>
 #import <simd/simd.h>
+#import "RealityKitBridging.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -37,11 +38,13 @@ typedef NS_ENUM(NSInteger, WKStageModeOperation) {
 
 @interface WKStageModeInteractionDriver: NSObject
 - (instancetype) initWithInteractionTarget:(REEntityRef)target model:(REEntityRef)model container:(REEntityRef)container NS_SWIFT_NAME(init(with:model:container:));
+- (instancetype) initWithInteractionTarget:(REEntityRef)target wkModel:(WKSRKEntity * _Nullable)model container:(REEntityRef)container NS_SWIFT_NAME(init(with:wkModel:container:));
 - (bool) stageModeInteractionInProgress NS_SWIFT_NAME(stageModeInteractionInProgress());
 - (void) interactionDidBegin:(simd_float4x4)transform NS_SWIFT_NAME(interactionDidBegin(_:));
 - (void) interactionDidUpdate:(simd_float4x4)transform NS_SWIFT_NAME(interactionDidUpdate(_:));
 - (void) interactionDidEnd NS_SWIFT_NAME(interactionDidEnd());
 - (void) operationDidUpdate:(WKStageModeOperation)operation NS_SWIFT_NAME(operationDidUpdate(_:));
+- (void) modelTransformDidChange NS_SWIFT_NAME(modelTransformDidChange());
 @end
 
 NS_ASSUME_NONNULL_END

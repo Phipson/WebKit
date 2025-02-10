@@ -41,26 +41,33 @@ fileprivate extension Logger {
 @MainActor
 @objc(WKStageModeInteractionDriver)
 public final class WKStageModeInteractionDriver: NSObject {
+    private let kDragToRotationMultiplier: Float = 5.0
+    
     private var stageModeOperation: WKStageModeOperation = .none
     let interactionTarget: Entity
+    let modelEntity: Entity
     
     // Transform state machine
     private var driverInitialized: Bool = false
     private var initialManipulationPose: Transform = .identity
     private var previousManipulationPose: Transform = .identity
+    private var initialTargetPose: Transform = .identity
     
     @objc override init() {
         self.interactionTarget = Entity()
+        self.modelEntity = Entity()
     }
     
-    init(_ target: Entity) {
-        Logger.objectManipulation.debug("WKOMInteraction: WKStageModeInteractionDriver created driver for target \(target.name)")
+    init(_ target: Entity, _ model: Entity) {
+        Logger.objectManipulation.debug("WKOM: WKStageModeInteractionDriver created driver for target \(target.name)")
         self.interactionTarget = target
+        self.modelEntity = model
     }
     
     // MARK: ObjC Exposed API
     @objc(initWithInteractionTarget:model:container:)
     convenience init(with entity: REEntityRef, model: REEntityRef, container: REEntityRef) {
+        Logger.objectManipulation.debug("initWithInteractionTarget:model:container:")
         let interactionContainer = Entity.__fromCore(__EntityRef.__fromCore(entity))
         let modelEntity = Entity.__fromCore(__EntityRef.__fromCore(model))
         let containerEntity = Entity.__fromCore(__EntityRef.__fromCore(container))
@@ -69,7 +76,27 @@ public final class WKStageModeInteractionDriver: NSObject {
         modelEntity.setParent(interactionContainer, preservingWorldTransform: true)
         interactionContainer.setParent(containerEntity, preservingWorldTransform: true)
         
-        self.init(interactionContainer)
+        self.init(interactionContainer, modelEntity)
+    }
+    
+    @objc(initWithInteractionTarget:wkModel:container:)
+    convenience init(with entity: REEntityRef, wkModel: WKSRKEntity?, container: REEntityRef) {
+        Logger.objectManipulation.debug("WKOM: initWithInteractionTarget:wkModel:container:")
+        guard let wkModel else {
+            Logger.objectManipulation.debug("WKOM: WKStageModeInteractionDriver could not find valid WKSRKEntity to initialize interaction container")
+            self.init()
+            return
+        }
+        
+        let interactionContainer = Entity.__fromCore(__EntityRef.__fromCore(entity))
+        let modelEntity = wkModel.entity
+        let containerEntity = Entity.__fromCore(__EntityRef.__fromCore(container))
+        
+        interactionContainer.setPosition(modelEntity.visualBounds(relativeTo: nil).center, relativeTo: nil)
+        modelEntity.setParent(interactionContainer, preservingWorldTransform: true)
+        interactionContainer.setParent(containerEntity, preservingWorldTransform: true)
+        
+        self.init(interactionContainer, modelEntity)
     }
     
     @objc(stageModeInteractionInProgress)
@@ -80,23 +107,31 @@ public final class WKStageModeInteractionDriver: NSObject {
     @objc(interactionDidBegin:)
     func interactionDidBegin(_ transform: simd_float4x4) {
         let tf = Transform(matrix: transform)
-        Logger.objectManipulation.debug("WKOMInteraction: WKStageModeInteractionDriver initializeDriver")
-        initialManipulationPose = Transform(matrix: interactionTarget.transformMatrix(relativeTo: nil))
+        Logger.objectManipulation.debug("WKOM: WKStageModeInteractionDriver initializeDriver")
+        initialManipulationPose = tf
         previousManipulationPose = tf
+        initialTargetPose = interactionTarget.transform
         driverInitialized = true
     }
     
     @objc(interactionDidUpdate:)
     func interactionDidUpdate(_ transform: simd_float4x4) {
         let tf = Transform(matrix: transform)
-        Logger.objectManipulation.debug("WKOMInteraction: WKStageModeInteractionDriver updateDriver \(self.interactionTarget.name)")
+        Logger.objectManipulation.debug("WKOM: WKStageModeInteractionDriver updateDriver \(self.interactionTarget.name)")
         switch stageModeOperation {
         case .orbit:
             do {
-                let xyDelta = (tf.translation._inMeters - previousManipulationPose.translation._inMeters).xy * 5.0
-                let eulerAngles = simd_float3(xyDelta.y, xyDelta.x, 0)
-                self.interactionTarget.transform.rotation *= eulerAngles.quaternion
-                Logger.objectManipulation.debug("WKOMInteraction: WKStageModeInteractionDriver orbit translation \(tf.translation) delta \(xyDelta)")
+                // FIXME: Clamp pitch to 90 deg?
+                let xyDelta = (tf.translation._inMeters - previousManipulationPose.translation._inMeters).xy * kDragToRotationMultiplier
+                
+                // Apply pitch along global x axis
+                var quat = Rotation3D(angle: .init(radians: xyDelta.y), axis: .init(vector: self.interactionTarget.convert(direction: .init(1, 0, 0), from: nil).double3))
+                
+                // Apply yaw along local y axis
+                quat = quat.rotated(by: Rotation3D(angle: .init(radians: xyDelta.x), axis: .y))
+                
+                self.interactionTarget.orientation *= quat.quaternion.quatf
+                Logger.objectManipulation.debug("WKOM: WKStageModeInteractionDriver orbit translation \(tf.translation) delta \(xyDelta)")
                 break
             }
         default:
@@ -115,7 +150,16 @@ public final class WKStageModeInteractionDriver: NSObject {
     
     @objc(operationDidUpdate:)
     func operationDidChange(_ operation: WKStageModeOperation) {
+        Logger.objectManipulation.debug("WKOM: StageModeDriver operationDidChange \(operation == .orbit)")
         self.stageModeOperation = operation
+    }
+    
+    @objc(modelTransformDidChange)
+    func modelTransformDidChange() {
+        let tempCenter = modelEntity.visualBounds(relativeTo: nil).center
+        let tempPosition = modelEntity.position(relativeTo: nil)
+        self.interactionTarget.setPosition(tempCenter, relativeTo: nil)
+        self.modelEntity.setPosition(tempPosition, relativeTo: nil)
     }
     
 }
@@ -179,6 +223,10 @@ extension simd_float3 {
     var xy: simd_float2 {
         return .init(x, y)
     }
+    
+    var double3: simd_double3 {
+        return .init(Double(x), Double(y), Double(z))
+    }
 }
 
 extension simd_double4x4 {
@@ -187,6 +235,12 @@ extension simd_double4x4 {
                              simd_float4(Float(columns.1[0]), Float(columns.1[1]), Float(columns.1[2]), Float(columns.1[3])),
                              simd_float4(Float(columns.2[0]), Float(columns.2[1]), Float(columns.2[2]), Float(columns.2[3])),
                              simd_float4(Float(columns.3[0]), Float(columns.3[1]), Float(columns.3[2]), Float(columns.3[3])))
+    }
+}
+
+extension simd_quatd {
+    var quatf: simd_quatf {
+        return .init(ix: Float(self.imag.x), iy: Float(self.imag.y), iz: Float(self.imag.z), r: Float(self.real))
     }
 }
 

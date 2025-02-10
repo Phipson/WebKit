@@ -453,6 +453,7 @@ ExceptionOr<void> HTMLModelElement::setEntityTransform(const DOMMatrixReadOnly& 
 
 void HTMLModelElement::didUpdateEntityTransform(ModelPlayer&, const TransformationMatrix& transform)
 {
+    WTFLogAlways("WKOM: Entity Transform Did Update");
     m_entityTransform = DOMMatrixReadOnly::create(transform, DOMMatrixReadOnly::Is2D::No);
 }
 

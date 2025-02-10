@@ -5594,17 +5594,7 @@ void WebPage::requestInteractiveModelElementAtPoint(WebCore::IntPoint clientPosi
         auto elementID = localMainFrame->eventHandler().requestInteractiveModelElementAtPoint(clientPosition);
         send(Messages::WebPageProxy::DidReceiveInteractiveModelElement(elementID));
     } else
-        requestInteractiveModelElementFailed();
-}
-
-void WebPage::didReceiveInteractiveModelElement(std::optional<WebCore::ElementIdentifier> elementID)
-{
-    send(Messages::WebPageProxy::DidReceiveInteractiveModelElement(elementID));
-}
-
-void WebPage::requestInteractiveModelElementFailed()
-{
-    send(Messages::WebPageProxy::DidReceiveInteractiveModelElement(std::nullopt));
+        send(Messages::WebPageProxy::DidReceiveInteractiveModelElement(std::nullopt));
 }
 
 void WebPage::stageModeSessionDidUpdate(std::optional<WebCore::ElementIdentifier> elementID, WebCore::TransformationMatrix transform)

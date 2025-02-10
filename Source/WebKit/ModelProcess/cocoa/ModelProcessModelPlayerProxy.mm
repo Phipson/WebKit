@@ -378,6 +378,7 @@ void ModelProcessModelPlayerProxy::updateTransform()
         return;
 
     [m_modelRKEntity setTransform:WKEntityTransform({ m_transformSRT.scale, m_transformSRT.rotation, m_transformSRT.translation })];
+    [m_stageModeInteractionDriver modelTransformDidChange];
 }
 
 void ModelProcessModelPlayerProxy::updateOpacity()
@@ -480,8 +481,12 @@ void ModelProcessModelPlayerProxy::didFinishLoading(WebCore::REModelLoader& load
     m_interactionContainerEntity = interactionTarget;
 
     // This also centers the interactionContainerEntity around the center of the model
-    m_stageModeInteractionDriver = adoptNS([WebKit::allocWKStageModeInteractionDriverInstance() initWithInteractionTarget:m_interactionContainerEntity.get() model:m_model->rootEntity() container:m_containerEntity.get()]);
-
+    if (canLoadWithRealityKit)
+        m_stageModeInteractionDriver = adoptNS([WebKit::allocWKStageModeInteractionDriverInstance() initWithInteractionTarget:m_interactionContainerEntity.get() wkModel:m_model->rootRKEntity().get() container:m_containerEntity.get()]);
+    else
+        m_stageModeInteractionDriver = adoptNS([WebKit::allocWKStageModeInteractionDriverInstance() initWithInteractionTarget:m_interactionContainerEntity.get() model:m_model->rootEntity() container:m_containerEntity.get()]);
+    applyStageModeOperationToDriver();
+    
     // Now that we updated the hierarchy, reapply all the network components and dirty metadata
     REEntitySubtreeAddNetworkComponentRecursive(m_interactionContainerEntity.get());
     RENetworkMarkEntityMetadataDirty(m_interactionContainerEntity.get());

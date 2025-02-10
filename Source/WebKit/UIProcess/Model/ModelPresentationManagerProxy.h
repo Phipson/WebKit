@@ -51,7 +51,6 @@ public:
     virtual ~ModelPresentationManagerProxy();
 
     RetainPtr<WKPageHostedModelView> setUpModelView(Ref<WebCore::ModelContext>);
-    RetainPtr<UIView> viewForDragPreview(const WebCore::PlatformLayerIdentifier&);
     void invalidateModel(const WebCore::PlatformLayerIdentifier&);
     void invalidateAllModels();
 

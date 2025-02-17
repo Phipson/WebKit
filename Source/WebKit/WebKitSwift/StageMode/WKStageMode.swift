@@ -46,38 +46,52 @@ public final class WKStageModeInteractionDriver: NSObject {
     private var stageModeOperation: WKStageModeOperation = .none
     let interactionTarget: Entity
     let modelEntity: Entity
+    let turntableInteractionContainer: Entity
+    let turntableAnimationProxyEntity = Entity()
     
     // Transform state machine
     private var driverInitialized: Bool = false
     private var initialManipulationPose: Transform = .identity
     private var previousManipulationPose: Transform = .identity
     private var initialTargetPose: Transform = .identity
-    private var centerToPositionOffset: simd_float3
+    private var initialTurntablePose: Transform = .identity
+    private var currentOrbitVelocity: simd_float2 = .zero
     
-    @objc override init() {
-        self.centerToPositionOffset = .zero
-        self.interactionTarget = Entity()
-        self.modelEntity = Entity()
+    // Animation Controllers
+    private var pitchSettleAnimationController: AnimationPlaybackController? = nil
+    private var yawDecelerationAnimationController: AnimationPlaybackController? = nil
+    
+    private var pitchAnimationIsPlaying: Bool {
+        pitchSettleAnimationController?.isPlaying ?? false
     }
     
-    init(_ target: Entity, _ model: Entity) {
-        self.centerToPositionOffset = model.visualBounds(relativeTo: nil).center - model.position(relativeTo: nil)
+    private var yawAnimationIsPlaying: Bool {
+        yawDecelerationAnimationController?.isPlaying ?? false
+    }
+    
+    @objc override init() {
+        self.interactionTarget = Entity()
+        self.modelEntity = Entity()
+        self.turntableInteractionContainer = Entity()
+    }
+    
+    init(_ target: Entity, _ model: Entity, _ turntableContainer: Entity) {
         self.interactionTarget = target
         self.modelEntity = model
+        self.turntableInteractionContainer = turntableContainer
     }
     
     // MARK: ObjC Exposed API
     @objc(initWithInteractionTarget:model:container:)
     convenience init(with entity: REEntityRef, model: REEntityRef, container: REEntityRef) {
         let interactionContainer = Entity.__fromCore(__EntityRef.__fromCore(entity))
+        let turntableContainer = Entity()
         let modelEntity = Entity.__fromCore(__EntityRef.__fromCore(model))
         let containerEntity = Entity.__fromCore(__EntityRef.__fromCore(container))
         
-        interactionContainer.setPosition(modelEntity.visualBounds(relativeTo: nil).center, relativeTo: nil)
-        modelEntity.setParent(interactionContainer, preservingWorldTransform: true)
-        interactionContainer.setParent(containerEntity, preservingWorldTransform: true)
+        self.init(interactionContainer, modelEntity, turntableContainer)
         
-        self.init(interactionContainer, modelEntity)
+        self.setupInteractionEntityHierarchy(containerEntity)
     }
     
     @objc(initWithInteractionTarget:wkModel:container:)
@@ -88,34 +102,57 @@ public final class WKStageModeInteractionDriver: NSObject {
         }
         
         let interactionContainer = Entity.__fromCore(__EntityRef.__fromCore(entity))
+        let turntableContainer = Entity()
         let modelEntity = wkModel.entity
         let containerEntity = Entity.__fromCore(__EntityRef.__fromCore(container))
-        
-        interactionContainer.setPosition(modelEntity.visualBounds(relativeTo: nil).center, relativeTo: nil)
-        modelEntity.setParent(interactionContainer, preservingWorldTransform: true)
-        interactionContainer.setParent(containerEntity, preservingWorldTransform: true)
-        
-        self.init(interactionContainer, modelEntity)
+
+        self.init(interactionContainer, modelEntity, turntableContainer)
+
+        self.setupInteractionEntityHierarchy(containerEntity)
+    }
+
+    private func setupInteractionEntityHierarchy(_ container: Entity) {
+        self.turntableInteractionContainer.setPosition(modelEntity.visualBounds(relativeTo: nil).center, relativeTo: nil)
+        self.interactionTarget.setPosition(modelEntity.visualBounds(relativeTo: nil).center, relativeTo: nil)
+
+        self.turntableInteractionContainer.setParent(interactionTarget, preservingWorldTransform: true)
+        self.modelEntity.setParent(turntableInteractionContainer, preservingWorldTransform: true)
+        self.interactionTarget.setParent(container, preservingWorldTransform: true)
+
+        self.turntableAnimationProxyEntity.setParent(turntableInteractionContainer)
     }
     
     @objc(stageModeInteractionInProgress)
     func stageModeInteractionInProgress() -> Bool {
-        return stageModeOperation != .none && driverInitialized
+        return stageModeOperation != .none && driverInitialized && (pitchAnimationIsPlaying || yawAnimationIsPlaying)
     }
     
     @objc(interactionDidBegin:)
     func interactionDidBegin(_ transform: simd_float4x4) {
         driverInitialized = true
+        
+        if pitchAnimationIsPlaying {
+            pitchSettleAnimationController?.pause()
+            self.pitchSettleAnimationController = nil
+        }
+        
+        if yawAnimationIsPlaying {
+            yawDecelerationAnimationController?.pause()
+            self.yawDecelerationAnimationController = nil
+        }
 
         let initialCenter = modelEntity.visualBounds(relativeTo: nil).center
         let initialMatrix = modelEntity.transformMatrix(relativeTo: nil)
+        self.currentOrbitVelocity = .zero
         self.interactionTarget.setPosition(initialCenter, relativeTo: nil)
         self.modelEntity.setTransformMatrix(initialMatrix, relativeTo: nil)
+        self.turntableAnimationProxyEntity.setPosition(.zero, relativeTo: nil)
         
         let tf = Transform(matrix: transform)
         initialManipulationPose = tf
         previousManipulationPose = tf
         initialTargetPose = interactionTarget.transform
+        initialTurntablePose = turntableInteractionContainer.transform
     }
     
     @objc(interactionDidUpdate:)
@@ -124,15 +161,17 @@ public final class WKStageModeInteractionDriver: NSObject {
         switch stageModeOperation {
         case .orbit:
             do {
-                let xyDelta = (tf.translation._inMeters - previousManipulationPose.translation._inMeters).xy * kDragToRotationMultiplier
+                let xyDelta = (tf.translation._inMeters - initialManipulationPose.translation._inMeters).xy * kDragToRotationMultiplier
                 
                 // Apply pitch along global x axis
-                var quat = Rotation3D(angle: .init(radians: xyDelta.y), axis: .init(vector: self.interactionTarget.convert(direction: .init(1, 0, 0), from: nil).double3))
-                
+                let containerPitchQuat = Rotation3D(angle: .init(radians: xyDelta.y), axis: .x)
+                self.interactionTarget.orientation = initialTargetPose.rotation * containerPitchQuat.quaternion.quatf
+
                 // Apply yaw along local y axis
-                quat = quat.rotated(by: Rotation3D(angle: .init(radians: xyDelta.x), axis: .y))
+                let turntableYawQuat = Rotation3D(angle: .init(radians: xyDelta.x), axis: .y)
+                self.turntableInteractionContainer.orientation = initialTurntablePose.rotation * turntableYawQuat.quaternion.quatf
                 
-                self.interactionTarget.orientation *= quat.quaternion.quatf
+                self.currentOrbitVelocity = (tf.translation._inMeters - previousManipulationPose.translation._inMeters).xy * kDragToRotationMultiplier
                 break
             }
         default:
@@ -144,9 +183,51 @@ public final class WKStageModeInteractionDriver: NSObject {
     
     @objc(interactionDidEnd)
     func interactionDidEnd() {
-        driverInitialized = false
         initialManipulationPose = .identity
         previousManipulationPose = .identity
+        pitchSettleAnimationController = self.interactionTarget.move(to: initialTargetPose, relativeTo: self.interactionTarget.parent, duration: 0.3, timingFunction: .easeOut)
+        subscribeToPitchChanges()
+        
+        // The proxy does not actually trigger the turntable animation; we instead use it to programmatically apply a deceleration curve to the yaw
+        // based on the user's current orbit velocity
+        yawDecelerationAnimationController = self.turntableAnimationProxyEntity.move(to: Transform(scale: .one, rotation: .identity, translation: .init(repeating: 1)), relativeTo: nil, duration: 3, timingFunction: .linear)
+        subscribeToYawChanges()
+        driverInitialized = false
+    }
+    
+    private func subscribeToYawChanges() {
+        if yawAnimationIsPlaying {
+            withObservationTracking {
+                // By default, we do not care about the proxy, but we use the update to set the deceleration of the turntable container
+                _ = turntableAnimationProxyEntity.proto_observableComponents[Transform.self]
+            } onChange: {
+                Task { @MainActor in
+                    let deltaX = self.currentOrbitVelocity.x
+                    let turntableYawQuat = Rotation3D(angle: .init(radians: deltaX), axis: .y)
+                    self.turntableInteractionContainer.orientation *= turntableYawQuat.quaternion.quatf
+                    self.currentOrbitVelocity *= 0.9
+                    
+                    // FIXME: Report transform updates back to the entityTransform
+                    // Because the onChange only gets called once, we need to re-subscribe to the function while we are animating
+                    self.subscribeToYawChanges()
+                }
+            }
+        }
+    }
+    
+    private func subscribeToPitchChanges() {
+        if pitchAnimationIsPlaying {
+            withObservationTracking {
+                // By default, we do not care about the proxy, but we use the update to set the deceleration of the turntable container
+                _ = interactionTarget.proto_observableComponents[Transform.self]
+            } onChange: {
+                Task { @MainActor in
+                    // FIXME: Report transform updates back to the entityTransform
+                    
+                    self.subscribeToPitchChanges()
+                }
+            }
+        }
     }
     
     @objc(operationDidUpdate:)
@@ -155,10 +236,7 @@ public final class WKStageModeInteractionDriver: NSObject {
     }
     
     @objc(modelTransformDidChange)
-    func modelTransformDidChange() {
-//        Logger.stageMode.debug("WKOM: TARGET \(self.interactionTarget.position(relativeTo: nil)) entity \(self.modelEntity.visualBounds(relativeTo: nil).center)")
-    }
-    
+    func modelTransformDidChange() { }
 }
 
 // MARK: - SIMD Extentions

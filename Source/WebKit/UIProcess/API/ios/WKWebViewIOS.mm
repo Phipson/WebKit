@@ -2515,11 +2515,61 @@ static WebCore::FloatPoint constrainContentOffset(WebCore::FloatPoint contentOff
     [self _beginLiveResize];
 }
 
+#if ENABLE(RESPONSIVE_LIVE_RESIZE_UPDATE)
+// FIXME: https://bugs.webkit.org/show_bug.cgi?id=313522
+static NSTimeInterval liveResizeMinTimeBetweenResizes()
+{
+    static NSTimeInterval minTime = 0.75;
+    static bool cached = false;
+    if (!cached) {
+        if (auto defaultTime = [[NSUserDefaults standardUserDefaults] doubleForKey:@"WebKitLiveResizeMinTimeBetweenResizes"])
+            minTime = defaultTime;
+        cached = true;
+    }
+    return minTime;
+}
+
+// FIXME: https://bugs.webkit.org/show_bug.cgi?id=313522
+static CGFloat liveResizeMinWidthDifference()
+{
+    static CGFloat minWidth = 10;
+    static bool cached = false;
+    if (!cached) {
+        if (auto defaultWidth = [[NSUserDefaults standardUserDefaults] doubleForKey:@"WebKitLiveResizeMinWidthDifference"])
+            minWidth = defaultWidth;
+        cached = true;
+    }
+    return minWidth;
+}
+
+- (BOOL)_shouldForceEndLiveResize
+{
+    if (_perProcessState.lastResizeTimestamp) {
+        NSTimeInterval timeSinceLastUpdate = [[NSDate now] timeIntervalSinceDate:_perProcessState.lastResizeTimestamp];
+        if (timeSinceLastUpdate < liveResizeMinTimeBetweenResizes())
+            return NO;
+    }
+
+    if (_perProcessState.lastResizedViewWidth) {
+        CGFloat widthDifference = std::abs(self.bounds.size.width - _perProcessState.lastResizedViewWidth.value());
+        if (widthDifference < liveResizeMinWidthDifference())
+            return NO;
+    }
+
+    return YES;
+}
+
+#endif // ENABLE(RESPONSIVE_LIVE_RESIZE_UPDATE)
+
 - (void)_rescheduleEndLiveResizeTimer
 {
     [_endLiveResizeTimer invalidate];
 
-    constexpr auto endLiveResizeHysteresis = 500_ms;
+    auto endLiveResizeHysteresis = 500_ms;
+#if ENABLE(RESPONSIVE_LIVE_RESIZE_UPDATE)
+    if ([self _shouldForceEndLiveResize])
+        endLiveResizeHysteresis = 0_ms;
+#endif
 
     _endLiveResizeTimer = [NSTimer
         scheduledTimerWithTimeInterval:endLiveResizeHysteresis.seconds()
@@ -2545,6 +2595,11 @@ static WebCore::FloatPoint constrainContentOffset(WebCore::FloatPoint contentOff
 
 #if HAVE(LIQUID_GLASS)
     [self _updateFixedColorExtensionViewFrames];
+#endif
+
+#if ENABLE(RESPONSIVE_LIVE_RESIZE_UPDATE)
+    if (_liveResizeSnapshotContainerView)
+        [_liveResizeSnapshotContainerView setTransform:transform];
 #endif
 }
 
@@ -3579,7 +3634,21 @@ static WebCore::UserInterfaceLayoutDirection toUserInterfaceLayoutDirection(UISe
 
     RetainPtr liveResizeSnapshotView = [self snapshotViewAfterScreenUpdates:NO];
     [liveResizeSnapshotView setFrame:self.bounds];
+
+#if ENABLE(RESPONSIVE_LIVE_RESIZE_UPDATE)
+    _liveResizeSnapshotContainerView = adoptNS([[UIView alloc] initWithFrame:self.bounds]);
+    [_liveResizeSnapshotContainerView layer].anchorPoint = CGPointZero;
+    [_liveResizeSnapshotContainerView layer].position = CGPointZero;
+    [_liveResizeSnapshotContainerView addSubview:liveResizeSnapshotView.get()];
+    [self addSubview:_liveResizeSnapshotContainerView.get()];
+#else
     [self addSubview:liveResizeSnapshotView.get()];
+#endif
+
+#if ENABLE(RESPONSIVE_LIVE_RESIZE_UPDATE)
+    _perProcessState.lastResizeTimestamp = [NSDate now];
+    _perProcessState.lastResizedViewWidth = self.bounds.size.width;
+#endif
 
     _perProcessState.liveResizeParameters = std::nullopt;
 
@@ -3587,6 +3656,23 @@ static WebCore::UserInterfaceLayoutDirection toUserInterfaceLayoutDirection(UISe
     [self _destroyResizeAnimationView];
     [self _didStopDeferringGeometryUpdates];
 
+#if ENABLE(RESPONSIVE_LIVE_RESIZE_UPDATE)
+    [self _doAfterNextVisibleContentRectUpdate:makeBlockPtr([weakSelf = WeakObjCPtr<WKWebView>(self)]() mutable {
+        auto strongSelf = weakSelf.get();
+        [strongSelf _doAfterNextPresentationUpdate:makeBlockPtr([weakSelf] {
+            auto strongSelf = weakSelf.get();
+            [strongSelf->_liveResizeSnapshotContainerView removeFromSuperview];
+            strongSelf->_liveResizeSnapshotContainerView = nil;
+        }).get()];
+    }).get()];
+
+    // Ensure that the live resize snapshot is eventually removed, even if the webpage is unresponsive.
+    RunLoop::mainSingleton().dispatchAfter(1_s, [weakSelf = WeakObjCPtr<WKWebView>(self)] {
+        auto strongSelf = weakSelf.get();
+        [strongSelf->_liveResizeSnapshotContainerView removeFromSuperview];
+        strongSelf->_liveResizeSnapshotContainerView = nil;
+    });
+#else
     [self _doAfterNextVisibleContentRectUpdate:makeBlockPtr([liveResizeSnapshotView, weakSelf = WeakObjCPtr<WKWebView>(self)]() mutable {
         auto strongSelf = weakSelf.get();
         [strongSelf _doAfterNextPresentationUpdate:makeBlockPtr([liveResizeSnapshotView] {
@@ -3598,6 +3684,7 @@ static WebCore::UserInterfaceLayoutDirection toUserInterfaceLayoutDirection(UISe
     RunLoop::mainSingleton().dispatchAfter(1_s, [liveResizeSnapshotView] {
         [liveResizeSnapshotView removeFromSuperview];
     });
+#endif
 }
 
 #endif // HAVE(UI_WINDOW_SCENE_LIVE_RESIZE)
